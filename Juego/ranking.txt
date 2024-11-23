@@ -1,0 +1,8 @@
+luis: 0
+jose: 5
+hola: 0
+miguel: 3
+luis: 0
+jose: 2
+a: 1
+a: 0
