@@ -1,26 +1,57 @@
+// Clase Abstracta FiguraGeometrica
+abstract class FiguraGeometrica {
+    protected String color;
+
+    public FiguraGeometrica(String color) {
+        this.color = color;
+    }
+
+    // Métodos abstractos
+    public abstract double calcularArea();
+    public abstract double calcularPerimetro();
+}
+
+// Interfaz Dibujable
+interface Dibujable {
+    void dibujar();
+}
+
+// Clase Circulo que hereda de FiguraGeometrica e implementa Dibujable
+class Circulo extends FiguraGeometrica implements Dibujable {
+    private double radio;
+
+    public Circulo(double radio, String color) {
+        super(color);
+        this.radio = radio;
+    }
+
+    @Override
+    public double calcularArea() {
+        return Math.PI * Math.pow(radio, 2);
+    }
+
+    @Override
+    public double calcularPerimetro() {
+        return 2 * Math.PI * radio;
+    }
+
+    @Override
+    public void dibujar() {
+        System.out.println("Dibujando un circulo de color " + color);
+    }
+}
+
+// Clase Main para probar la implementación
 public class Main {
     public static void main(String[] args) {
-        // Crear tres estudiantes
-        Estudiante estudiante1 = new Estudiante("Carlos", 19, "D98765");
-        Estudiante estudiante2 = new Estudiante("Ana", 20, "A12345");
-        Estudiante estudiante3 = new Estudiante("Luis", 21, "L54321");
+        // Crear un objeto Circulo
+        Circulo circulo = new Circulo(5.0, "rojo");
 
-        // Uso del método setGet para modificar y mostrar atributos
-        estudiante1.setGet("nombre", "Carlos");
-        estudiante1.setGet("edad", "19");
-        estudiante1.setGet("matricula", "D98765");
+        // Calcular y mostrar el área y perímetro
+        System.out.println("Area del circulo: " + circulo.calcularArea());
+        System.out.println("Perimetro del circulo: " + circulo.calcularPerimetro());
 
-        estudiante2.setGet("nombre", "Ana");
-        estudiante2.setGet("edad", "20");
-        estudiante2.setGet("matricula", "A12345");
-
-        estudiante3.setGet("nombre", "Luis");
-        estudiante3.setGet("edad", "21");
-        estudiante3.setGet("matricula", "L54321");
-
-        // Mostrar todos los datos
-        estudiante1.mostrarDatos();
-        estudiante2.mostrarDatos();
-        estudiante3.mostrarDatos();
+        // Dibujar el círculo
+        circulo.dibujar();
     }
 }
