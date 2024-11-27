@@ -6,7 +6,7 @@ import java.io.*;
 import javax.sound.sampled.*;
 import java.util.List;
 import java.util.ArrayList;
-
+//----------------------------------------------------------------------------------------------------------------------------------------------//
 // Clase Pregunta
 class Pregunta {
     private int num1;
@@ -43,7 +43,7 @@ class Pregunta {
         return respuestaCorrecta;
     }
 }
-
+//----------------------------------------------------------------------------------------------------------------------------------------------//
 // Clase Jugador
 class Jugador {
     private String nombre;
@@ -66,26 +66,31 @@ class Jugador {
         return puntuacion;
     }
 }
-
+//----------------------------------------------------------------------------------------------------------------------------------------------//
 // Clase Ranking
 class Ranking {
     private static final String RANKING_FILE = "ranking.txt";
 
     public static void guardarPuntaje(Jugador jugador) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(RANKING_FILE, true))) {
-            writer.write(jugador.getNombre() + ": " + jugador.obtenerPuntuacion());
+            String nombreLimpio = jugador.getNombre().trim();
+            int puntuacion = jugador.obtenerPuntuacion();
+            writer.write(nombreLimpio + "," + puntuacion);
             writer.newLine();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static List<String> cargarRanking() {
-        List<String> ranking = new ArrayList<>();
+    public static List<String[]> cargarRanking() {
+        List<String[]> ranking = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(RANKING_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                ranking.add(line);
+                String[] parts = line.split(",");
+                if (parts.length == 2 && parts[1].matches("\\d+")) { // Validar formato
+                    ranking.add(new String[]{parts[0].trim(), parts[1].trim()});
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -93,16 +98,30 @@ class Ranking {
         return ranking;
     }
 
+    public static List<String[]> ordenarRanking(List<String[]> ranking) {
+        ranking.sort((entry1, entry2) -> {
+            int puntaje1 = Integer.parseInt(entry1[1]);
+            int puntaje2 = Integer.parseInt(entry2[1]);
+            return Integer.compare(puntaje2, puntaje1); // De mayor a menor
+        });
+        return ranking;
+    }
+
     public static void mostrarRanking(JFrame ventana) {
-        List<String> ranking = cargarRanking();
+        List<String[]> ranking = cargarRanking();
+        ordenarRanking(ranking);
+
         StringBuilder rankingText = new StringBuilder("Ranking:\n");
-        for (String entry : ranking) {
-            rankingText.append(entry).append("\n");
+        for (String[] entry : ranking) {
+            if (entry.length == 2) { // Validar entrada antes de mostrar
+                rankingText.append(entry[0]).append(": ").append(entry[1]).append("\n");
+            }
         }
+
         JOptionPane.showMessageDialog(ventana, rankingText.toString());
     }
 }
-
+//----------------------------------------------------------------------------------------------------------------------------------------------//
 // Clase Juego
 class Juego {
     private Jugador jugador;
@@ -113,13 +132,14 @@ class Juego {
     private JTextField respuestaField;
     private JButton siguienteButton;
     private JLabel puntuacionLabel;
+    private JLabel tiempoLabel; // Etiqueta para el temporizador
     private int respuestaCorrecta;
-    private int contadorPreguntas;
+    private Timer timer; // Temporizador
+    private int tiempoRestante;
 
     public Juego(String nombreJugador) {
         jugador = new Jugador(nombreJugador);
         random = new Random();
-        contadorPreguntas = 0;  // Inicializamos el contador de preguntas
         inicializarVentana();
     }
 
@@ -129,13 +149,12 @@ class Juego {
         ventana.setSize(400, 300);
         ventana.setLocationRelativeTo(null);
 
-        // Usamos el panel de fondo
-        FondoPanel panelFondo = new FondoPanel("fondo.jpg");  // Aquí ponemos la ruta de la imagen de fondo
+        FondoPanel panelFondo = new FondoPanel("fondo.jpg"); // Imagen de fondo
         ventana.setContentPane(panelFondo);
-        panelFondo.setLayout(new GridLayout(5, 1));
+        panelFondo.setLayout(new GridLayout(6, 1));
 
         preguntaLabel = new JLabel("Pregunta:");
-        preguntaLabel.setForeground(Color.BLACK);  // Color blanco para que se vea sobre el fondo oscuro
+        preguntaLabel.setForeground(Color.BLACK);
         panelFondo.add(preguntaLabel);
 
         respuestaField = new JTextField();
@@ -150,38 +169,16 @@ class Juego {
                     respuestaUsuario = Integer.parseInt(respuestaField.getText());
                     if (respuestaUsuario == respuestaCorrecta) {
                         jugador.aumentarPuntuacion();
-                        reproducirSonido("correcto.wav");  // Sonido de respuesta correcta
+                        reproducirSonido("correcto.wav");
                         JOptionPane.showMessageDialog(ventana, "¡Correcto!");
                     } else {
-                        reproducirSonido("incorrecto.wav");  // Sonido de respuesta incorrecta
+                        reproducirSonido("incorrecto.wav");
                         JOptionPane.showMessageDialog(ventana, "¡Incorrecto! La respuesta correcta era " + respuestaCorrecta);
                     }
                     puntuacionLabel.setText("Puntuación: " + jugador.obtenerPuntuacion());
-                    contadorPreguntas++;  // Incrementar el contador de preguntas
-                    // Modificamos la parte del código donde se termina el juego después de las 5 preguntas respondidas
-                    if (contadorPreguntas >= 5) {
-                        // Si ya respondieron 5 preguntas, terminamos el juego
-                        // Verificar la puntuación y mostrar el mensaje correspondiente
-                        if (jugador.obtenerPuntuacion() < 3) {
-                            reproducirSonido("0 a 3.wav");  // Sonido de felicitaciones
-                            JOptionPane.showMessageDialog(ventana, "¡Te falta estudiar! Tu puntuación es: " + jugador.obtenerPuntuacion());
-                        } else if (jugador.obtenerPuntuacion() == 4) {
-                            reproducirSonido("aplausos.wav");
-                            JOptionPane.showMessageDialog(ventana, "¡Eres un genio! Tu puntuación es: " + jugador.obtenerPuntuacion());
-                        } else if (jugador.obtenerPuntuacion() == 5) {
-                            reproducirSonido("felicidades.wav");  // Sonido de felicitaciones
-                            JOptionPane.showMessageDialog(ventana, "¡PONGALE 100 PROFE! Tu puntuación es: " + jugador.obtenerPuntuacion());
-                        }
-                        Ranking.guardarPuntaje(jugador);  // Guardar el puntaje del jugador
-                        Ranking.mostrarRanking(ventana);  // Mostrar el ranking
-
-                        // Volver al menú de inicio después de mostrar el ranking
-                        mostrarMenuInicio();
-                    } else {
-                        generarPregunta();
-                    }
+                    generarPregunta();
                 } catch (NumberFormatException ex) {
-                    reproducirSonido("error.wav");  // Sonido para entrada no válida
+                    reproducirSonido("error.wav");
                     JOptionPane.showMessageDialog(ventana, "Por favor ingresa un número válido.");
                 }
             }
@@ -189,10 +186,42 @@ class Juego {
         panelFondo.add(siguienteButton);
 
         puntuacionLabel = new JLabel("Puntuación: 0");
-        puntuacionLabel.setForeground(Color.BLACK);  // Asegúrate de que el texto sea visible sobre el fondo
+        puntuacionLabel.setForeground(Color.BLACK);
         panelFondo.add(puntuacionLabel);
 
+        tiempoLabel = new JLabel("Tiempo restante: 20");
+        tiempoLabel.setForeground(Color.BLACK);
+        panelFondo.add(tiempoLabel);
+
+        inicializarTemporizador();
     }
+
+    private void inicializarTemporizador() {
+    tiempoRestante = 45;
+    timer = new Timer(1000, new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            tiempoRestante--;
+            tiempoLabel.setText("Tiempo restante: " + tiempoRestante);
+            if (tiempoRestante <= 0) {
+                timer.stop();  // Detener el temporizador
+                // Reproducir sonido dependiendo de la puntuación
+                if (jugador.obtenerPuntuacion() >= 8) {
+                    reproducirSonido("felicidades.wav");  // Sonido de victoria si la puntuación es alta
+                } else if (jugador.obtenerPuntuacion() >= 5) {
+                    reproducirSonido("Aplausos.wav");  // Sonido para puntuaciones medianas
+                } else {
+                    reproducirSonido("0 a 3.wav");  // Sonido si la puntuación es baja
+                }
+                JOptionPane.showMessageDialog(ventana, "Se acabo el tiempo! Tu puntuacion es: " + jugador.obtenerPuntuacion());
+                Ranking.guardarPuntaje(jugador);  // Guardar el puntaje
+                Ranking.mostrarRanking(ventana);  // Mostrar el ranking
+                mostrarMenuInicio();  // Volver al menú de inicio
+            }
+        }
+    });
+    timer.start();
+}
 
     public void comenzar() {
         ventana.setVisible(true);
@@ -223,19 +252,16 @@ class Juego {
     }
 
     private void mostrarMenuInicio() {
-        ventana.dispose();  // Cierra la ventana actual del juego
-
-        // Crea el menú de inicio de nuevo
+        ventana.dispose();
         JuegoEducativo.iniciarMenu();
     }
 }
-
-// Clase para crear un panel con fondo de imagen
+//----------------------------------------------------------------------------------------------------------------------------------------------//
+// Clase FondoPanel
 class FondoPanel extends JPanel {
     private Image imagen;
 
     public FondoPanel(String rutaImagen) {
-        // Cargar la imagen de fondo
         try {
             imagen = new ImageIcon(rutaImagen).getImage();
         } catch (Exception e) {
@@ -246,12 +272,11 @@ class FondoPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        // Dibuja la imagen de fondo en el panel
         g.drawImage(imagen, 0, 0, getWidth(), getHeight(), this);
     }
 }
-
-// Clase principal con la interfaz de inicio
+//----------------------------------------------------------------------------------------------------------------------------------------------//
+// Clase principal
 public class JuegoEducativo {
     public static void main(String[] args) {
         iniciarMenu();
@@ -260,55 +285,50 @@ public class JuegoEducativo {
     public static void iniciarMenu() {
         JFrame inicioVentana = new JFrame("Juego Educativo");
         inicioVentana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        inicioVentana.setSize(400, 250);  // Aumentamos el tamaño para ajustar todos los elementos
+        inicioVentana.setSize(400, 250);
         inicioVentana.setLocationRelativeTo(null);
 
         JPanel panelInicio = new JPanel();
-        panelInicio.setLayout(new GridLayout(5, 1)); // Cambié a un GridLayout para mayor espacio
-        panelInicio.setBackground(Color.WHITE);  // Fondo blanco para el menú
+        panelInicio.setLayout(new GridLayout(6, 1));  // Cambié de 5 a 6 filas para incluir el botón de salir
+        panelInicio.setBackground(Color.WHITE);
 
-        // Título del juego
         JLabel tituloLabel = new JLabel("Juego de Preguntas Matemáticas");
         tituloLabel.setFont(new Font("Arial", Font.BOLD, 20));
         tituloLabel.setHorizontalAlignment(SwingConstants.CENTER);
         panelInicio.add(tituloLabel);
 
-        // Campo para ingresar el nombre del jugador
         JTextField nombreField = new JTextField();
         nombreField.setFont(new Font("Arial", Font.PLAIN, 16));
-        panelInicio.add(new JLabel("Ingresa tu nombre:"));
+        panelInicio.add(new JLabel("Ingrese su nombre:"));
         panelInicio.add(nombreField);
 
-        // Botón para comenzar
-        JButton jugarButton = new JButton("¡Jugar!");
-        jugarButton.setFont(new Font("Arial", Font.PLAIN, 16));
-        jugarButton.addActionListener(new ActionListener() {
+        JButton comenzarButton = new JButton("Comenzar Juego");
+        comenzarButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String nombreJugador = nombreField.getText().trim();
-                if (!nombreJugador.isEmpty()) {
-                    inicioVentana.dispose();  // Cierra la ventana de inicio
-                    Juego juego = new Juego(nombreJugador);
+                String nombre = nombreField.getText().trim();
+                if (!nombre.isEmpty()) {
+                    Juego juego = new Juego(nombre);
                     juego.comenzar();
+                    inicioVentana.dispose();
                 } else {
-                    JOptionPane.showMessageDialog(inicioVentana, "Por favor ingresa tu nombre.");
+                    JOptionPane.showMessageDialog(inicioVentana, "Por favor, ingresa un nombre.");
                 }
             }
         });
-        panelInicio.add(jugarButton);
-
-        // Botón para salir
+        panelInicio.add(comenzarButton);
+//----------------------------------------------------------------------------------------------------------------------------------------------//
+        // Agrega boton "Salir"
         JButton salirButton = new JButton("Salir");
-        salirButton.setFont(new Font("Arial", Font.PLAIN, 16));
         salirButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                System.exit(0);  // Cierra la aplicación
+                System.exit(0);  // Cierra la aplicacion
             }
         });
         panelInicio.add(salirButton);
 
-        inicioVentana.setContentPane(panelInicio);
+        inicioVentana.add(panelInicio);
         inicioVentana.setVisible(true);
     }
 }
