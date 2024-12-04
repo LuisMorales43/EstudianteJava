@@ -1,2 +1,10 @@
-elena,5
+
+hola,3
+hola,2
+hola,6
+hola,1
+hola,6
+hola,4
+
 luis,1
+luis,0
