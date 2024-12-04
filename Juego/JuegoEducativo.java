@@ -150,40 +150,39 @@ class Ranking {
         textArea.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 14));
         textArea.setEditable(false);
 
+        JScrollPane scrollPane = new JScrollPane(textArea);
+
         JOptionPane.showMessageDialog(ventana, new JScrollPane(textArea), "Ranking", JOptionPane.INFORMATION_MESSAGE);
     }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------//
 // Clase base para el juego
-abstract class JuegoBase {
-    protected Jugador jugador;
-    protected JFrame ventana;
-
-    public JuegoBase(String nombreJugador) {
-        this.jugador = new Jugador(nombreJugador);
-    }
-
-    public abstract void inicializarVentana();
-    public abstract void comenzar();
-}
-
-// Clase Juego que hereda de JuegoBase
+// Clase Juego
 class Juego extends JuegoBase {
+    private String dificultad;
+    private String[] operaciones; // Arreglo de operaciones permitidas según la dificultad
     private Random random;
     private JLabel preguntaLabel;
     private JTextField respuestaField;
     private JButton siguienteButton;
     private JLabel puntuacionLabel;
     private JLabel tiempoLabel;
+    private JLabel spriteLabel;  // JLabel para el sprite
     private int respuestaCorrecta;
     private Timer timer;
     private int tiempoRestante;
 
-    public Juego(String nombreJugador) {
+    private List<ImageIcon> correctoSecuencia = new ArrayList<>();
+    private List<ImageIcon> incorrectoSecuencia = new ArrayList<>();
+
+    public Juego(String nombreJugador, String dificultad) {
         super(nombreJugador);
+        this.dificultad = dificultad;
         random = new Random();
         inicializarVentana();
+        cargarSecuencias();
+        ajustarDificultad(); // Configurar los parámetros según la dificultad
     }
 
     @Override
@@ -207,6 +206,16 @@ class Juego extends JuegoBase {
         respuestaField.setBounds(150, 100, 500, 40);
         panelFondo.add(respuestaField);
 
+        // Agregar un KeyListener para que al presionar Enter se ejecute la acción de "Responder"
+        respuestaField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    siguienteButton.doClick(); // Simula un clic en el botón "Responder"
+                }
+            }
+        });
+
         siguienteButton = new JButton("Responder");
         siguienteButton.setBounds(300, 150, 200, 40);
         siguienteButton.addActionListener(e -> verificarRespuesta());
@@ -220,6 +229,11 @@ class Juego extends JuegoBase {
         tiempoLabel.setBounds(300, 240, 200, 30);
         panelFondo.add(tiempoLabel);
 
+        // Crear el JLabel para el sprite
+        spriteLabel = new JLabel(new ImageIcon("sprite.gif"));
+        spriteLabel.setBounds(350, 270, 100, 120);  // Ajusta la posición y el tamaño según sea necesario
+        panelFondo.add(spriteLabel);
+
         inicializarTemporizador();
     }
 
@@ -229,11 +243,36 @@ class Juego extends JuegoBase {
         generarPregunta();
     }
 
+    private void ajustarDificultad() {
+        switch (dificultad) {
+            case "Fácil":
+                tiempoRestante = 90;
+                operaciones = new String[]{ "+" }; // Solo sumas
+                break;
+            case "Medio":
+                tiempoRestante = 60;
+                operaciones = new String[]{ "+", "-" }; // Sumas y restas
+                break;
+            case "Difícil":
+                tiempoRestante = 45;
+                operaciones = new String[]{ "+", "-", "*" }; // Sumas, restas y multiplicaciones
+                break;
+        }
+    }
+
+    private void cargarSecuencias() {
+        correctoSecuencia.add(new ImageIcon("correcto.png"));
+        correctoSecuencia.add(new ImageIcon("sprite.gif"));
+
+        incorrectoSecuencia.add(new ImageIcon("incorrecto.gif"));
+        incorrectoSecuencia.add(new ImageIcon("sprite.gif"));
+    }
+
     private void generarPregunta() {
-        int num1 = random.nextInt(100) + 1;
-        int num2 = random.nextInt(10) + 1;
-        String[] operaciones = {"+", "-", "*"};
-        String operacion = operaciones[random.nextInt(operaciones.length)];
+        int num1 = random.nextInt(100) + 1; // Números del 1 al 100
+        int num2 = random.nextInt(10) + 1;  // Números del 1 al 10
+        String operacion = operaciones[random.nextInt(operaciones.length)]; // Operación aleatoria según la dificultad
+
         Pregunta pregunta = new Pregunta(num1, num2, operacion);
         preguntaLabel.setText("Pregunta: " + pregunta.obtenerPregunta());
         respuestaCorrecta = pregunta.obtenerRespuestaCorrecta();
@@ -244,36 +283,83 @@ class Juego extends JuegoBase {
             int respuestaUsuario = Integer.parseInt(respuestaField.getText());
             if (respuestaUsuario == respuestaCorrecta) {
                 jugador.aumentarPuntuacion();
+                reproducirSonido("correcto.wav");
                 JOptionPane.showMessageDialog(ventana, "¡Correcto!");
+                moverSprite(true);  // Mover el sprite cuando la respuesta es correcta
             } else {
+                reproducirSonido("incorrecto.wav");
                 JOptionPane.showMessageDialog(ventana, "Incorrecto. La respuesta era " + respuestaCorrecta);
+                moverSprite(false);  // Mover el sprite cuando la respuesta es incorrecta
             }
             puntuacionLabel.setText("Puntuación: " + jugador.obtenerPuntuacion());
             generarPregunta();
         } catch (NumberFormatException e) {
+            reproducirSonido("error.wav");
             JOptionPane.showMessageDialog(ventana, "Por favor ingresa un número válido.");
         }
     }
 
+    private void moverSprite(boolean respuestaCorrecta) {
+        List<ImageIcon> secuencia = respuestaCorrecta ? correctoSecuencia : incorrectoSecuencia;
+        
+        Timer animacionTimer = new Timer(600, new ActionListener() {
+            private int indice = 0;
+            
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (indice < secuencia.size()) {
+                    spriteLabel.setIcon(secuencia.get(indice));
+                    indice++;
+                } else {
+                    ((Timer) e.getSource()).stop();
+                }
+            }
+        });
+        
+        animacionTimer.start();
+    }
+
     private void inicializarTemporizador() {
-        tiempoRestante = 30;
         timer = new Timer(1000, e -> {
             tiempoRestante--;
             tiempoLabel.setText("Tiempo restante: " + tiempoRestante);
             if (tiempoRestante <= 0) {
                 timer.stop();
-                JOptionPane.showMessageDialog(ventana, "¡Se acabó el tiempo! Puntuación: " + jugador.obtenerPuntuacion());
-                Ranking.guardarPuntaje(jugador);
-                Ranking.mostrarRanking(ventana);
-                mostrarMenuInicio();
+                finalizarJuego();
             }
         });
         timer.start();
     }
 
+    private void finalizarJuego() {
+        if (jugador.obtenerPuntuacion() >= 8) {
+            reproducirSonido("felicidades.wav");  // Sonido de victoria si la puntuación es alta
+        } else if (jugador.obtenerPuntuacion() >= 5) {
+            reproducirSonido("Aplausos.wav");  // Sonido para puntuaciones medianas
+        } else {
+            reproducirSonido("0 a 3.wav");  // Sonido si la puntuación es baja
+        }
+        JOptionPane.showMessageDialog(ventana, "¡Se acabó el tiempo! Puntuación: " + jugador.obtenerPuntuacion());
+        Ranking.guardarPuntaje(jugador);
+        Ranking.mostrarRanking(ventana);
+        mostrarMenuInicio();
+    }
+
     private void mostrarMenuInicio() {
         ventana.dispose();
         JuegoEducativo.iniciarMenu();
+    }
+
+    private void reproducirSonido(String archivo) {
+        try {
+            File sonidoFile = new File(archivo);
+            AudioInputStream audioStream = AudioSystem.getAudioInputStream(sonidoFile);
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioStream);
+            clip.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
 
@@ -298,44 +384,77 @@ class FondoPanel extends JPanel {
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------//
-// Clase principal
+//Clase JuegoEducativo
 public class JuegoEducativo {
     public static void main(String[] args) {
         iniciarMenu();
     }
 
     public static void iniciarMenu() {
-        JFrame ventana = new JFrame("Menú Principal");
-        ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        ventana.setSize(800, 400);
-        ventana.setLocationRelativeTo(null);
+        JFrame inicioVentana = new JFrame("Juego Educativo");
+        inicioVentana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        inicioVentana.setSize(900, 550);
+        inicioVentana.setLocationRelativeTo(null);
 
-        FondoPanel panelFondo = new FondoPanel("menu.jpg");
-        ventana.setContentPane(panelFondo);
-        panelFondo.setLayout(null);
+        FondoPanel panelInicio = new FondoPanel("C:/Users/NextClick/OneDrive/Escritorio/CODE/POO/Proyecto/Juego/super-mario-cloud-moewalls-com.gif");
+        panelInicio.setLayout(null);
 
-        JButton jugarButton = new JButton("Jugar");
-        jugarButton.setBounds(300, 100, 200, 50);
-        jugarButton.addActionListener(e -> {
-            ventana.dispose();
-            String nombreJugador = JOptionPane.showInputDialog("Ingresa tu nombre:");
-            if (nombreJugador != null && !nombreJugador.trim().isEmpty()) {
-                Juego juego = new Juego(nombreJugador.trim());
-                juego.comenzar();
+        JLabel tituloLabel = new JLabel("Juego de Preguntas Matemáticas");
+        tituloLabel.setFont(new Font("Arial", Font.BOLD, 20));
+        tituloLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        tituloLabel.setBounds(150, 30, 600, 40);
+        tituloLabel.setForeground(Color.BLACK);
+        panelInicio.add(tituloLabel);
+
+        JLabel nombreLabel = new JLabel("Ingrese su nombre:");
+        nombreLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+        nombreLabel.setBounds(380, 100, 200, 30);
+        nombreLabel.setForeground(Color.BLACK);
+        panelInicio.add(nombreLabel);
+
+        JTextField nombreField = new JTextField();
+        nombreField.setFont(new Font("Arial", Font.PLAIN, 16));
+        nombreField.setBounds(150, 140, 600, 30);
+        panelInicio.add(nombreField);
+
+        JLabel dificultadLabel = new JLabel("Seleccione la dificultad:");
+        dificultadLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+        dificultadLabel.setBounds(380, 190, 200, 30);
+        dificultadLabel.setForeground(Color.BLACK);
+        panelInicio.add(dificultadLabel);
+
+        String[] nivelesDificultad = {"Fácil", "Medio", "Difícil"};
+        JComboBox<String> dificultadCombo = new JComboBox<>(nivelesDificultad);
+        dificultadCombo.setBounds(150, 230, 600, 30);
+        panelInicio.add(dificultadCombo);
+
+        JButton comenzarButton = new JButton("Comenzar Juego");
+        comenzarButton.setBounds(100, 300, 300, 40);
+        comenzarButton.addActionListener(e -> {
+            String nombre = nombreField.getText().trim();
+            String dificultad = (String) dificultadCombo.getSelectedItem();
+            if (!nombre.isEmpty()) {
+                JOptionPane.showMessageDialog(inicioVentana, "¡Juego está a punto de iniciar para " + nombre + "!");
+                inicioVentana.dispose();
+                new Juego(nombre, dificultad).comenzar(); // Pasar la dificultad seleccionada
+            } else {
+                JOptionPane.showMessageDialog(inicioVentana, "Por favor, ingresa un nombre.");
             }
         });
-        panelFondo.add(jugarButton);
-
-        JButton rankingButton = new JButton("Ranking");
-        rankingButton.setBounds(300, 180, 200, 50);
-        rankingButton.addActionListener(e -> Ranking.mostrarRanking(ventana));
-        panelFondo.add(rankingButton);
+        panelInicio.add(comenzarButton);
 
         JButton salirButton = new JButton("Salir");
-        salirButton.setBounds(300, 260, 200, 50);
+        salirButton.setBounds(500, 300, 300, 40);
         salirButton.addActionListener(e -> System.exit(0));
-        panelFondo.add(salirButton);
+        panelInicio.add(salirButton);
 
-        ventana.setVisible(true);
+        JButton rankingButton = new JButton("Ranking");
+        rankingButton.setBounds(300, 400, 300, 40);
+        rankingButton.addActionListener(e -> Ranking.mostrarRanking(inicioVentana));
+        panelInicio.add(rankingButton);
+
+        inicioVentana.add(panelInicio);
+        inicioVentana.setVisible(true);
     }
 }
+

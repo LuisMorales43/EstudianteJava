@@ -8,3 +8,10 @@ hola,4
 
 luis,1
 luis,0
+hola,1
+hola,1
+hola,0
+hola,0
+hola,0
+hola,0
+hola,1
